@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "1MC3qd1qY4SEXOG3ihX6OPlhzF4IifIkBhcXhBYpl0o=",
+  "Source": "APIDemo_swagger",
+  "BasePath": "_content/APIDemo_swagger",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

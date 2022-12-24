@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json.Serialization;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -14,6 +15,7 @@ builder.Services.AddSwaggerGen();
 // 更新資料庫
 // Scaffold-DbContext "Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\Todo\Todo.mdf;Integrated Security=True;Connect Timeout=30" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -Force -CoNtext TodoContext
 builder.Services.AddControllers();
+// builder.Services.AddNewtonsoftJson();
 builder.Services.AddDbContext<TodoContext>(options =>
 options.UseSqlServer(builder.Configuration.GetConnectionString("TodoDatabase")));
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

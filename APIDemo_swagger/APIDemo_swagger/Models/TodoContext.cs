@@ -111,7 +111,7 @@ public partial class TodoContext : DbContext
 
             entity.HasOne(d => d.Todo).WithMany(p => p.UploadFiles)
                 .HasForeignKey(d => d.TodoId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                //.OnDelete(DeleteBehavior.ClientSetNull) //拔掉才能刪子資料
                 .HasConstraintName("FK_File_ToTable");
         });
 

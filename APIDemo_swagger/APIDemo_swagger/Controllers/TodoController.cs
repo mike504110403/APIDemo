@@ -1,14 +1,19 @@
 ﻿using APIDemo_swagger.Dtos;
 using APIDemo_swagger.Models;
 using APIDemo_swagger.Parameters;
+using APIDemo_swagger.Services;
 using AutoMapper;
 using Azure;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json.Linq;
 using System;
+using JsonPatchDocument = Microsoft.AspNetCore.JsonPatch.JsonPatchDocument;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -18,569 +23,202 @@ namespace APIDemo_swagger.Controllers
     [ApiController]
     public class TodoController : ControllerBase
     {
-        //========================= 利用DI注入關聯物件 API結束後自動釋放資源 ================================//
-        private readonly TodoContext _todoContext; // 唯讀   
+        private readonly TodoContext _todoContext; //   
+        private readonly TodoListService _todoListService; // 取得資料服務注入
         private readonly IMapper _iMapper; // AutoMapper
-        public TodoController(TodoContext todoContext, IMapper iMapper) // 另用建構子存至唯讀
+
+        public TodoController(TodoContext todoContext, IMapper iMapper, TodoListService todoListService) // 另用建構子存至唯讀
         {
             _todoContext = todoContext;
             _iMapper = iMapper;
+            _todoListService = todoListService;
         }
-        //========================= 利用DI注入關聯物件 API結束後自動釋放資源 ================================//
-
 
         //================================================= 取得資料 =================================================================//
-        //========================== GET LINQ - 將資料庫以物件存取 ============================================//
+
         // GET api/<TodoController>  
-        // 關鍵字搜尋 傳參數有預設:直接傳預設FromQuery;用類別預設FromBody。因此須特別標示【FromQuery】
         [HttpGet]
-        public IActionResult Get([FromQuery] TodoSelectParameters value)  // 回應狀態 // 若要回資料格式 => IEnumerable<TodoListSelectDto> 
+        public IActionResult Get([FromQuery] TodoSelectParameters value)  // 關鍵字搜尋 傳參數有預設:直接傳預設FromQuery;用類別預設FromBody。因此須特別標示【FromQuery】
         {
-            var result = _todoContext.TodoLists.
-                Include(a => a.UpdateEmployee).
-                Include(a => a.InsertEmployee).
-                Include(a => a.UploadFiles).
-                Select(a => a);
-
-            if (!string.IsNullOrWhiteSpace(value.name)) // 撈出包含name的
-            {
-                result = result.Where(a => a.Name.Contains(value.name)); 
-            }
-
-            if (value.enable != null) // 撈出enable符合的
-            {
-                result = result.Where(a => a.Enable == value.enable);
-            }
-
-            if (value.insertTime != null) // 撈出DateTime符合的
-            {
-                result = result.Where(a => a.InsertTime.Date == value.insertTime); 
-            }
-
-            if (value.minOrder != null && value.maxOrder != null) // 撈出order符合的
-            {
-                result = result.Where(a => a.Orders >= value.minOrder && a.Orders <= value.maxOrder); // 撈出介於minOrder-maxOrder
-            }
+            var result = _todoListService.Selectdb(value); // 取得資料
 
             if (result == null || result.Count() <= 0) // 如果找不到資料
             {
                 return NotFound("找不到資源"); // 找不到資源狀態
             }
 
-            return Ok(result.ToList().Select(a => ItemToDto(a)));
+            return Ok(result);
         }
+
         // GET api/<TodoController>/5
         [HttpGet("{id}")]
         public ActionResult<TodoListSelectDto> Get(Guid id) // 回應狀態 - 實作 // 若要回資料格式 => TodoListSelectDto
         {
-            var result = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a)
-                          .Include(a => a.UpdateEmployee)
-                          .Include(a => a.InsertEmployee)
-                          .Include(a => a.UploadFiles)
-                          .SingleOrDefault(); // singleordefault => 找不到資料就會為空
-            if (result == null)
+            var result = _todoListService.SelectOnedb(id); // 取得單筆資料
+
+            if (result == null) // 如果找不到資料 
             {
                 return NotFound("找不到Id為'" + id + "'的資料");
-                // Response.StatusCode = 404;
             }
-            return Ok(ItemToDto(result));
+
+            return Ok(result);
         }
-        //========================== GET LINQ - 將資料庫以物件存取 ============================================//
-        //====================== SQL 撈資料 ======================================//
-        // sql語法撈
-        [HttpGet("GetSQL")]
-        public IEnumerable<TodoList> GetSQL(string? name)
-        {
-            string sql = "select * from todolist where 1=1";
 
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                sql = sql + "and name like N'%" + name + "%'";   // Sql injection => name = ';update [TodoList] set name = N'去上課' where [TodoId] = '' --
-            }
-            var result = _todoContext.TodoLists.FromSqlRaw(sql); // 下sql語法
-
-            return result;
-        }
-        // sql語法撈Dto欄位
-        [HttpGet("GetSQLDto")]
-        public IEnumerable<TodoListSelectDto> GetSQLDto(string? name)
-        {
-            string sql = @"SELECT [TodoId], a.[Name], [InsertTime], [UpdateTime], [Enable], [Orders]
-                        , b.Name as InsertEmployeeName, c.Name as UpdateEmployeeName
-                        FROM [TodoList] a
-                        join Employee b on a.InsertEmployeeId = b.EmployeeId
-                        join Employee c on a.UpdateEmployeeId = c.EmployeeId 
-                        where 1=1";
-
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                sql = sql + "and name like N'%" + name + "%'";   
-            }
-            var result = _todoContext.TodoListSelectDto.FromSqlRaw(sql); // 下sql語法
-
-            return result;
-        }
-        //====================== SQL 撈資料 ======================================//
-        //====================== Automapper Dto 自動映射======================================//
+        // GET api/<TodoController>/Automapper
         [HttpGet("Automapper")] 
         public IEnumerable<TodoListSelectDto> GetAutoMapper([FromQuery] TodoSelectParameters value)
         { 
-            var result = _todoContext.TodoLists.
-                Include(a => a.UpdateEmployee).
-                Include(a => a.InsertEmployee).
-                Select(a => a);
-
-            if (!string.IsNullOrWhiteSpace(value.name))
-            {
-                result = result.Where(a => a.Name.Contains(value.name)); // 撈出包含name的
-            }
-
-            if (value.enable != null)
-            {
-                result = result.Where(a => a.Enable == value.enable);
-            }
-
-            if (value.insertTime != null)
-            {
-                result = result.Where(a => a.InsertTime.Date == value.insertTime); // 撈出DateTime符合的
-            }
-
-            if (value.minOrder != null && value.maxOrder != null)
-            {
-                result = result.Where(a => a.Orders >= value.minOrder && a.Orders <= value.maxOrder); // 撈出介於minOrder-maxOrder
-            }
-
-            // automapper 自動映射
-            var map = _iMapper.Map<IEnumerable<TodoListSelectDto>>(result);
-
-            return map;
+            return _todoListService.AutomapperSelectdb(value);
         }
+
+        // GET api/<TodoController>/Automapper/id
         [HttpGet("Automapper/{id}")]
-        public TodoListSelectDto GetAutoMapper(Guid id)
+        public ActionResult<TodoListSelectDto> GetAutoMapper(Guid id)
         {
-            var result = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a)
-                          .Include(a => a.UpdateEmployee)
-                          .Include(a => a.InsertEmployee).SingleOrDefault();
+            var result = _todoListService.AutomapperSelectOnedb(id); // 取得單筆資料
 
-            return _iMapper.Map<TodoListSelectDto>(result);
+            if (result == null) // 如果找不到資料 
+            {
+                return NotFound("找不到Id為'" + id + "'的資料");
+            }
+
+            return Ok(result);
         }
-        //====================== Automapper Dto 自動映射 ======================================//
-        //====================== api引數吃法展示 ======================================//
-        // GET api/<TodoController>/from/{id}
-        // 有預設吃route 無預設吃query
-        [HttpGet("From/{id}")]
-        public dynamic GetFrom([FromRoute] string id, [FromQuery] string id2, [FromForm] string id4) // [FromBody]string id3,
+
+        // GET api/<TodoController>/GetSQL
+        [HttpGet("GetSQL")]
+        public IEnumerable<TodoList> GetSQL(string? name) //sql語法撈 
         {
-            List<dynamic> result = new List<dynamic>();
-
-            result.Add(id);
-            result.Add(id2);
-            // result.Add(id3);
-            result.Add(id4);
-
-            return result;
+            return _todoListService.Selectsqldb(name);
         }
-        //====================== api引數吃法 ======================================//
-        //================================================= 取得資料 =================================================================//
 
+        // GET api/<TodoController>/GetSQLDto
+        [HttpGet("GetSQLDto")]
+        public IEnumerable<TodoListSelectDto> GetSQLDto(string? name) // sql語法撈 Dto轉型秀特定欄位 // 參數查詢有問題 -> 待解
+        {
+            return _todoListService.Selectsqldtodb(name);
+        }
 
         //================================================= 新增資料 =================================================================//
-        //============================ 同時新增父子資料 ======================================//
-        // 有設外鍵情況下同時新增父子資料 只有新增父資料情況有異常 -> 待解
+         
         // POST api/<TodoController>
         [HttpPost]
-        public void Post([FromBody] TodoListPostDto value) // IActionResult回應狀態
+        public IActionResult Post([FromBody] TodoListPostDto value) // 有設外鍵情況下同時新增父子資料 只有新增父資料情況有異常 -> 待解
         {
-            // 轉型以給定uploadfiles
-            List<UploadFile> upl = new List<UploadFile>();
-
-            foreach (var temp in value.UploadFiles)
-            {
-                UploadFile up = new UploadFile()
-                {
-                    Name = temp.Name,
-                    Src = temp.Src
-                };
-                upl.Add(up);
-            };
-
-            TodoList insert = new TodoList // 轉型
-            {
-                // 使用者能決定的欄位
-                Name = value.Name,
-                Enable = value.Enable,
-                Orders = value.Orders,
-                // 系統決定的欄位
-                InsertTime = DateTime.Now,
-                UpdateTime = DateTime.Now,
-                InsertEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"), // 還沒做 先寫死
-                UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                UploadFiles = upl // 子資料 (db已做外鍵關聯 Uploadfile內的todoid不用給 會自動吃父資料的)
-            };
-            _todoContext.TodoLists.Add(insert);
-            _todoContext.SaveChanges();
-
-            // return CreatedAtAction(nameof(Get), new { TodoId = insert.TodoId} , insert);
-
+            var insert = _todoListService.Postdb(value); // 新增資料
+            return CreatedAtAction(nameof(Get), new { TodoId = insert.TodoId} , insert);
         }
-        // 未設外鍵情況下同時新增父子資料
+
         // POST api/<TodoController>/nofk
         [HttpPost("nofk")]
-        public void Postnofk([FromBody] TodoListPostDto value)
+        public void Postnofk([FromBody] TodoListPostDto value) // 未設外鍵情況下同時新增父子資料
         {
-            // 新增父資料
-            TodoList insert_f = new TodoList // 轉型
-            {
-                // 使用者能決定的欄位
-                Name = value.Name,
-                Enable = value.Enable,
-                Orders = value.Orders,
-                // 系統決定的欄位
-                InsertTime = DateTime.Now,
-                UpdateTime = DateTime.Now,
-                InsertEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"), // 還沒做 先寫死
-                UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001")
-            };
-
-            _todoContext.TodoLists.Add(insert_f);
-            _todoContext.SaveChanges(); // 先存父資料 下方存子資料才取的到TodoId
-
-            // 新增子資料
-            foreach (var temp in value.UploadFiles)
-            {
-                UploadFile insert_c = new UploadFile // 轉型
-                {
-                    Name = temp.Name,
-                    Src = temp.Src,
-                    TodoId = insert_f.TodoId
-                    // UploadFileId = temp.UploadFileId // 此處才建立upliadfile id此時自動生成 無須給定 且 body給值也不用給UploadFileId
-                };
-                _todoContext.UploadFiles.Add(insert_c);
-            };
-
-            _todoContext.SaveChanges();
-
-
+            _todoListService.PostNofkdb(value); // 新增資料
         }
-        //============================ 同時新增父子資料 ======================================//
-        //====================== Automapper Dto 自動映射======================================//
-        // 有設外鍵情況下同時新增父子資料
-        // POST api/<TodoController>
+
+        // POST api/<TodoController>/AutoMapper
         [HttpPost("AutoMapper")]
-        public void PostAutoMapper([FromBody] TodoList value)
+        public void PostAutoMapper([FromBody] TodoListPostDto value) // 有設外鍵情況下同時新增父子資料 // 同時新增父子資料情況下異常 -> 待解
         {
-            var map = _iMapper.Map<TodoList>(value); // 自動映射(系統給定值及其他參數寫在TodoListProfile)
-
-            // 系統決定的欄位 先寫死 -> 移至TodoListPeofile
-            //map.InsertTime = DateTime.Now;
-            //map.UpdateTime = DateTime.Now;
-            //map.InsertEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // 還沒做 先寫死
-            //map.UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-            // map.UploadFiles = upl; // automapper連同子資料憶起自動轉
-
-            _todoContext.TodoLists.Add(map);
-            _todoContext.SaveChanges();
+            _todoListService.AutomapperPostdb(value);
         }
-        //====================== Automapper Dto 自動映射 ======================================//
-        //============================ SQL 新增資料 ======================================//
+
         // POST api/<TodoController>/postSQL
         [HttpPost("postSQL")]
         public void PostSQL([FromBody] TodoListPostDto value)
         {
-            var name = new SqlParameter("name", value.Name); // 語法轉成單純字串 避免sql injection --> 參數化
-
-            string sql = @"INSERT INTO [dbo].[TodoList]
-                            ([Name],[InsertTime],[UpdateTime],[Enable],[Orders],[InsertEmployeeId],[UpdateEmployeeId]) 
-                            VALUES
-                            (@name,'"+DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")+"','"+ DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-                            +"','"+value.Enable+"',"+value.Orders+",'00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001') ";
-           
-            _todoContext.Database.ExecuteSqlRaw(sql, name); // 直接送sql
+            _todoListService.Postsql(value);
         }
-        //============================ SQL 新增資料 ======================================//
-        //================================================= 新增資料 =================================================================//
-
 
         //================================================= 更新資料 =================================================================//
-        // PUT api/<TodoController>/5
+
+        // PUT api/<TodoController>/id
         [HttpPut("{id}")]
-        public void Put(Guid id, [FromBody] TodoListPutDto value)
-        {
-            // _todoContext.Entry(value).State = EntityState.Modified; // 不同寫法 自動匹配更新
-
-            //_todoContext.TodoLists.Update(value); // 實務上不會直接將輸入值丟進去
-            //_todoContext.SaveChanges();
-
-            // 運用Dto轉型傳進來的值
-
-            // 先找要更新的那筆
-            // var update = _todoContext.TodoLists.Find(id);  // Find()內需填主key
-            var update = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a).SingleOrDefault(); // id為主key 所以才能下single
-
-            if (update != null) // 找的到資料再針對該筆做更新
-            {
-                // 系統決定欄位給值
-                update.UpdateTime = DateTime.Now;
-                update.UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // 還沒做 先寫死
-                // 傳入給值
-                update.Name = value.Name;
-                update.Orders = value.Orders;
-                update.Enable = value.Enable;
-
-                _todoContext.SaveChanges();
-
-                //  or內建函式自動匹配
-                // _todoContext.TodoLists.Update(update).CurrentValues.SetValues(value);
-                // _todoContext.SaveChanges();
-            }
-
-
-
-        }
-        //路由不帶id的更新 - 不符合restful API
-        // PUT api/<TodoController>
-        [HttpPut]
-        public void Put([FromBody] TodoListPutDto value)
-        {
-            // _todoContext.Entry(value).State = EntityState.Modified; // 不同寫法 自動匹配更新
-
-            //_todoContext.TodoLists.Update(value); // 實務上不會直接將輸入值丟進去
-            //_todoContext.SaveChanges();
-
-            // 運用Dto轉型傳進來的值
-
-            // 先找要更新的那筆
-            // var update = _todoContext.TodoLists.Find(id);  // Find()內需填主key
-            var update = (from a in _todoContext.TodoLists
-                          where a.TodoId == value.TodoId
-                          select a).SingleOrDefault(); // id為主key 所以才能下single
-
-            if (update != null) // 找的到資料再針對該筆做更新
-            {
-                // 系統決定欄位給值
-                update.InsertTime = DateTime.Now;
-                update.UpdateTime = DateTime.Now;
-                update.InsertEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // 還沒做 先寫死
-                update.UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-                // 傳入給值
-                update.Name = value.Name;
-                update.Orders = value.Orders;
-                update.Enable = value.Enable;
-
-                _todoContext.SaveChanges();
-            }
-
-
-
-        }
-        //====================== Automapper Dto 自動映射======================================//
-
-        [HttpPut("AutoMapper/{id}")]
-        public void PutAutoMapper(Guid id, [FromBody] TodoListPutDto value)
-        {
-            // 先找要更新的那筆
-            var update = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a).SingleOrDefault(); // id為主key 所以才能下single
-
-            if (update != null) // 找的到資料再針對該筆做更新
-            {
-                _iMapper.Map(value, update); // 自動映射(系統給定值及其他參數寫在TodoListProfile)
-                _todoContext.SaveChanges();
-            }
-        }
-        //====================== Automapper Dto 自動映射 ======================================//
-        //========================= 有回應狀態的更新 ======================================//
-        [HttpPut("Response/{id}")]
-        public IActionResult PutResponse(Guid id, [FromBody] TodoListPutDto value)
+        public IActionResult Put(Guid id, [FromBody] TodoListPutDto value)
         {
             if (id != value.TodoId)
             {
                 return BadRequest();
             }
-
-
-            // 先找要更新的那筆
-            // var update = _todoContext.TodoLists.Find(id);  // Find()內需填主key
-            var update = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a).SingleOrDefault(); // id為主key 所以才能下single
-
-            if (update != null) // 找的到資料再針對該筆做更新
+            if (_todoListService.Putdb(id, value) == 0)
             {
-                // 系統決定欄位給值
-                update.UpdateTime = DateTime.Now;
-                update.UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // 還沒做 先寫死
-
-                _todoContext.TodoLists.Update(update).CurrentValues.SetValues(value);
-                _todoContext.SaveChanges();
+                return NotFound();
             }
-            else
+            return NoContent();
+        }
+
+        // PUT api/<TodoController>
+        [HttpPut]
+        public IActionResult Put([FromBody] TodoListPutDto value) //路由不帶id的更新 - 不符合restful API
+        {
+            if (_todoListService.Putnroutedb(value) == 0)
+            {
+                return NotFound();
+            }
+            return NoContent();
+        }
+
+        // PUT api/<TodoController>/AutoMapper/id
+        [HttpPut("AutoMapper/{id}")]
+        public IActionResult PutAutoMapper(Guid id, [FromBody] TodoListPutDto value)
+        {
+            if (id != value.TodoId)
+            {
+                return BadRequest();
+            }
+            if (_todoListService.AutomapperPutdb(id, value) == 0)
             {
                 return NotFound();
             }
 
-            return NoContent(); // 204請求成功，無法回內容
+            return NoContent();
         }
-        //========================= 有回應狀態的更新 ======================================//
 
-        //================================================= 更新資料 =================================================================//
-
-
-        //================================================= 取代資料(未完成) =================================================================//
-        //[HttpPatch("{id}")]
-        //public void Patch(Guid id, [FromBody] JsonPatchDocument value)
-        //{
-        //    // 先找要更新的那筆
-        //    var update = (from a in _todoContext.TodoLists
-        //                  where a.TodoId == id
-        //                  select a).SingleOrDefault(); // id為主key 所以才能下single
-
-        //    if (update != null) // 找的到資料再針對該筆做更新
-        //    {
-        //        // 系統決定欄位給值
-        //        update.UpdateTime = DateTime.Now;
-        //        update.UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // 還沒做 先寫死
-
-        //        value.ApplyTo(update); // 局部更新
-
-        //        _todoContext.SaveChanges();
-        //    }
-        //}
-        //================================================= 取代資料(未完成) =================================================================//
-
-
-        //================================================= 刪除資料 =================================================================//
-        // DELETE api/<TodoController>/5
-        [HttpDelete("{id}")]
-        public void Delete(Guid id)
+        //================================================= 取代資料 =================================================================//
+        [HttpPatch("{id}")]
+        public IActionResult Patch(Guid id, [FromBody] JsonPatchDocument value)
         {
-            // 先找該筆資料，因有外鍵，把相關子資料也找出來
-            var delete = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a)
-                          .Include(c => c.UploadFiles)
-                          .SingleOrDefault(); // id為主key 所以才能下single
-
-            if (delete != null)
-            {
-                _todoContext.TodoLists.Remove(delete);
-                _todoContext.SaveChanges();
-            }
-        }
-        // 同時刪除多筆資料、無外鍵下刪除子資料
-        // DELETE api/nofk/<TodoController>/5
-        [HttpDelete("nofk/{id}")]
-        public void NofkDelete(Guid id)
-        {
-            // 先找該筆資料
-            var delete_f = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a).SingleOrDefault(); // id為主key 所以才能下single
-
-            // 找到相關子資料
-            var delete_c = from a in _todoContext.UploadFiles
-                           where a.TodoId == id
-                           select a;
-
-            if (delete_c != null)
-            {
-                // 清子資料
-                _todoContext.UploadFiles.RemoveRange(delete_c); // RemoveRange -> 刪除多筆
-                _todoContext.SaveChanges();
-            }
-
-            if (delete_f != null)
-            {
-                _todoContext.TodoLists.Remove(delete_f);
-                _todoContext.SaveChanges();
-            }
-
-        }
-        // 同時刪除多筆指定資料 - 待解
-        // DELETE api/list/<TodoController>/5
-        //[HttpDelete("list/{ids}")]
-        //public void Delete(string ids)
-        //{
-        //    // 反序列字串
-        //    List<Guid> deleteList = JsonSerializer.Deserialize<List<Guid>>(ids);
-
-        //    // 先找指定資料
-        //    var delete = (from a in _todoContext.TodoLists
-        //                    where deleteList.Contains(a.TodoId)
-        //                    select a).Include(c => c.UploadFiles);
-
-        //    _todoContext.TodoLists.RemoveRange(delete);
-        //    _todoContext.SaveChanges();
-
-        //}
-        //========================= 有回應狀態的刪除 ======================================//
-        // DELETE api/<TodoController>/5
-        [HttpDelete("Response/{id}")]
-        public IActionResult ResponseDelete(Guid id)
-        {
-            // 先找該筆資料，因有外鍵，把相關子資料也找出來
-            var delete = (from a in _todoContext.TodoLists
-                          where a.TodoId == id
-                          select a)
-                          .Include(c => c.UploadFiles)
-                          .SingleOrDefault(); // id為主key 所以才能下single
-
-            if (delete == null)
+            if (_todoListService.Patchdb(id, value) == 0)
             {
                 return NotFound("找不到該筆資料");
             }
-
-            _todoContext.TodoLists.Remove(delete);
-            _todoContext.SaveChanges();
-
             return NoContent();
         }
-        //========================= 有回應狀態的刪除 ======================================//
+
         //================================================= 刪除資料 =================================================================//
 
-
-
-        //=========================== 函式化 ========================================//
-
-        // Dto函式 轉型資料 -> 只顯示需要顯示的欄位
-        private static TodoListSelectDto ItemToDto(TodoList a)
+        // DELETE api/<TodoController>/id
+        [HttpDelete("{id}")]
+        public IActionResult Delete(Guid id)
         {
-            List<UploadFileDto> updto = new List<UploadFileDto>();
-
-            foreach (var temp in a.UploadFiles)
+            if (_todoListService.Deletedb(id) == 0)
             {
-                UploadFileDto up = new UploadFileDto() // 逐筆轉換子資料
-                {
-                    Name = temp.Name,
-                    Src = temp.Src,
-                    TodoId = temp.TodoId,
-                    UploadFileId = temp.UploadFileId
-                };
-                updto.Add(up);
+                return NotFound();
             }
-
-            return new TodoListSelectDto
-            {
-                Enable = a.Enable,
-                InsertEmployeeName = a.InsertEmployee.Name,
-                InsertTime = a.InsertTime,
-                Name = a.Name,
-                Orders = a.Orders,
-                TodoId = a.TodoId,
-                UpdateEmployeeName = a.UpdateEmployee.Name,
-                UpdateTime = a.UpdateTime,
-                UploadFiles = updto
-            };
+            return NoContent();
         }
 
-        //=========================== 函式化 ========================================//
+        // DELETE api/nofk/<TodoController>/nofk/id
+        [HttpDelete("nofk/{id}")]
+        public IActionResult NofkDelete(Guid id) // 同時刪除多筆資料、無外鍵下刪除子資料
+        {
+            if (_todoListService.Deletenofkdb(id) == 0) // 找不到資料
+            {
+                return NotFound("無該筆資料");
+            }
+            return NoContent();
+        }
+
+        // DELETE api/list/<TodoController>/5
+        [HttpDelete("list/{ids}")]
+        public IActionResult Delete(string ids) // 同時刪除多筆指定資料
+        {
+            if (_todoListService.Deletenumdb(ids) == 0) // 找不到資料
+            {
+                return NotFound("無該筆資料");
+            }
+            return NoContent();
+        }
 
     }
 }

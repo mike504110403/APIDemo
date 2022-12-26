@@ -87,3 +87,5 @@ D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\AutoMapper.dll
 D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\AutoMapper.Extensions.Microsoft.DependencyInjection.dll
 D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Microsoft.AspNetCore.JsonPatch.dll
 D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Newtonsoft.Json.dll
+D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Microsoft.AspNetCore.Mvc.NewtonsoftJson.dll
+D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Newtonsoft.Json.Bson.dll

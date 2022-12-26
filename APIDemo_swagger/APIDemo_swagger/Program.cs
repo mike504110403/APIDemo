@@ -1,4 +1,5 @@
 using APIDemo_swagger.Models;
+using APIDemo_swagger.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json.Serialization;
@@ -15,15 +16,16 @@ builder.Services.AddSwaggerGen();
 // 更新資料庫
 // Scaffold-DbContext "Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\Todo\Todo.mdf;Integrated Security=True;Connect Timeout=30" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -Force -CoNtext TodoContext
 builder.Services.AddControllers();
-// builder.Services.AddNewtonsoftJson();
+builder.Services.AddControllers().AddNewtonsoftJson(); // JsonPatch
 builder.Services.AddDbContext<TodoContext>(options =>
-options.UseSqlServer(builder.Configuration.GetConnectionString("TodoDatabase")));
+options.UseSqlServer(builder.Configuration.GetConnectionString("TodoDatabase"))); // DI注入物件
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-//// Add services to the container.解決外鍵循環取值問題
-//builder.Services.AddControllers().AddJsonOptions(options =>
-//{
-//    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
-//});
+builder.Services.AddScoped<TodoListService>(); // server注入
+// Add services to the container.解決外鍵循環取值問題
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+});
 
 var app = builder.Build();
 

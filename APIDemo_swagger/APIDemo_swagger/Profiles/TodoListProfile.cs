@@ -17,6 +17,10 @@ namespace APIDemo_swagger.Profiles
                 .ForMember(
                 dest => dest.UpdateEmployeeName,
                 opt => opt.MapFrom(src => src.UpdateEmployee.Name + "(" + src.UpdateEmployeeId + ")")
+                )
+                .ForMember(
+                dest => dest.Name,
+                opt => opt.MapFrom(src => src.Name + "(use automapper)")
                 );
             // Post
             CreateMap<TodoListPostDto, TodoList>().ForMember(

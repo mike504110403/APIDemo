@@ -3,7 +3,10 @@
 namespace APIDemo_swagger.Parameters
 {
     public class TodoSelectParameters
-    {   // 參數化查詢所用類別
+    {   
+        // 注入server參數
+        public string? type { get; set; }
+        // 參數化查詢所用類別
         public string? name { get; set; }
         public bool? enable { get; set; } 
         public DateTime? insertTime { get; set; }

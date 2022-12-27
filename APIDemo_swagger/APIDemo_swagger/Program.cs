@@ -1,3 +1,4 @@
+using APIDemo_swagger.Interfaces;
 using APIDemo_swagger.Models;
 using APIDemo_swagger.Services;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,12 @@ builder.Services.AddControllers().AddNewtonsoftJson(); // JsonPatch
 builder.Services.AddDbContext<TodoContext>(options =>
 options.UseSqlServer(builder.Configuration.GetConnectionString("TodoDatabase"))); // DI注入物件
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
 builder.Services.AddScoped<TodoListService>(); // server注入
+
+builder.Services.AddScoped<ITodoListService, TodoLinqService>(); // IOC server DI注入 目前情境不需要
+builder.Services.AddScoped<ITodoListService, TodoAutomapperService>();
+
 // Add services to the container.解決外鍵循環取值問題
 builder.Services.AddControllers().AddJsonOptions(options =>
 {

@@ -89,3 +89,4 @@ D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Microsoft.AspNe
 D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Newtonsoft.Json.dll
 D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Microsoft.AspNetCore.Mvc.NewtonsoftJson.dll
 D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\Newtonsoft.Json.Bson.dll
+D:\MVC\Practice\APIDemo_swagger\APIDemo_swagger\bin\Debug\net6.0\APIDemo_swagger.staticwebassets.runtime.json

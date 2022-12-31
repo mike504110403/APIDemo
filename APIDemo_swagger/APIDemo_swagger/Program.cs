@@ -14,6 +14,7 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 // 更新資料庫
 // Scaffold-DbContext "Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\Todo\Todo.mdf;Integrated Security=True;Connect Timeout=30" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -Force -CoNtext TodoContext
 builder.Services.AddControllers();
@@ -23,6 +24,7 @@ options.UseSqlServer(builder.Configuration.GetConnectionString("TodoDatabase")))
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddScoped<TodoListService>(); // server注入
+builder.Services.AddScoped<TodoListAsyncService>(); // server注入
 
 builder.Services.AddScoped<ITodoListService, TodoLinqService>(); // IOC server DI注入 目前情境不需要
 builder.Services.AddScoped<ITodoListService, TodoAutomapperService>();
@@ -46,6 +48,10 @@ app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
+app.UseStaticFiles(); // 靜態目錄開關
+
 app.MapControllers();
 
 app.Run();
+
+

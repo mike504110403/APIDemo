@@ -14,6 +14,8 @@ using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
 using System;
 using JsonPatchDocument = Microsoft.AspNetCore.JsonPatch.JsonPatchDocument;
+using System.Collections.Generic;
+using APIDemo_swagger.ModelBinder;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -26,12 +28,14 @@ namespace APIDemo_swagger.Controllers
         private readonly TodoContext _todoContext; //   
         private readonly TodoListService _todoListService; // 取得資料服務注入
         private readonly IMapper _iMapper; // AutoMapper
+        private readonly IWebHostEnvironment _env;
 
-        public TodoController(TodoContext todoContext, IMapper iMapper, TodoListService todoListService) // 另用建構子存至唯讀
+        public TodoController(TodoContext todoContext, IMapper iMapper, TodoListService todoListService, IWebHostEnvironment env) // 另用建構子存至唯讀
         {
             _todoContext = todoContext;
             _iMapper = iMapper;
             _todoListService = todoListService;
+            _env = env;
         }
 
         //================================================= 取得資料 =================================================================//
@@ -107,6 +111,55 @@ namespace APIDemo_swagger.Controllers
         {
             var insert = _todoListService.Postdb(value); // 新增資料
             return CreatedAtAction(nameof(Get), new { TodoId = insert.TodoId} , insert);
+        }
+
+        // POST api/<TodoController>/up
+        [HttpPost("up")]
+        public void PostUp([FromForm] TodoListPostUpDto value) // 一次請求，同時新增備忘錄及檔案 
+        { 
+            // TodoList _value = JsonConvert.DeserializeObject<TodoList>(value); // 寫成模型繫結擴充方法
+
+            TodoList insert = new TodoList()
+            {
+                InsertTime = DateTime.Now,
+                UpdateTime = DateTime.Now,
+                InsertEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001")
+            };
+
+            _todoContext.TodoLists.Add(insert).CurrentValues.SetValues(value.TodoList);
+            _todoContext.SaveChanges();
+
+            string rootRoot = _env.ContentRootPath + @"\wwwroot\UploadFiles\" + insert.TodoId + "\\";
+
+            if (!Directory.Exists(rootRoot))
+            {
+                Directory.CreateDirectory(rootRoot);
+            }
+
+            foreach (var file in value.files)
+            {
+                if (file.Length > 0)
+                {
+                    string fileName = file.FileName;
+
+                    using (var stream = System.IO.File.Create(rootRoot + fileName)) // 開啟檔名為fileName的檔案
+                    {
+                        file.CopyTo(stream); // 儲存至路徑stream
+
+                        var insert_file = new UploadFile
+                        {
+                            Name = file.Name,
+                            Src = "/UploadFiles/" + insert.TodoId + "/" + fileName,
+                            TodoId = insert.TodoId
+                        };
+
+                        _todoContext.UploadFiles.Add(insert_file);
+                    }
+                }
+            }
+
+            _todoContext.SaveChanges();
         }
 
         // POST api/<TodoController>/nofk

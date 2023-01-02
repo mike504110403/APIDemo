@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "gmQk70LjLQ2/fJ9sd+g7e3OE/+SVWqF8QOH3Snp6yN18aP+vBj2N5URifJLD1vLsw7yBY2R53Uz9e9CpX7XZiw==",
+  "dgSpecHash": "mfcOCqN8Ah7+FQaN2Rn2oMavJbDN4GcL0VVL3xVQ9gc/LSB3W6HAyazsqoLBIvd3VkRe77Bq2z/w0oXqbsHXfQ==",
   "success": true,
   "projectFilePath": "D:\\MVC\\Practice\\APIDemo_swagger\\APIDemo_swagger\\APIDemo_swagger.csproj",
   "expectedPackageFiles": [
@@ -9,6 +9,7 @@
     "C:\\Users\\mike5\\.nuget\\packages\\azure.core\\1.24.0\\azure.core.1.24.0.nupkg.sha512",
     "C:\\Users\\mike5\\.nuget\\packages\\azure.identity\\1.6.0\\azure.identity.1.6.0.nupkg.sha512",
     "C:\\Users\\mike5\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
+    "C:\\Users\\mike5\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\6.0.0\\microsoft.aspnetcore.authentication.jwtbearer.6.0.0.nupkg.sha512",
     "C:\\Users\\mike5\\.nuget\\packages\\microsoft.aspnetcore.jsonpatch\\6.0.0\\microsoft.aspnetcore.jsonpatch.6.0.0.nupkg.sha512",
     "C:\\Users\\mike5\\.nuget\\packages\\microsoft.aspnetcore.mvc.newtonsoftjson\\6.0.0\\microsoft.aspnetcore.mvc.newtonsoftjson.6.0.0.nupkg.sha512",
     "C:\\Users\\mike5\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\1.1.1\\microsoft.bcl.asyncinterfaces.1.1.1.nupkg.sha512",

@@ -8,6 +8,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Security.Claims;
 
 namespace APIDemo_swagger.Services
 {
@@ -15,10 +16,12 @@ namespace APIDemo_swagger.Services
     {
         private readonly TodoContext _todoContext; // service
         private readonly IMapper _mapper; // automapper
-        public TodoListService(TodoContext todoContext, IMapper mapper)
+        private readonly IHttpContextAccessor _httpContextAccessor; // httpcontext
+        public TodoListService(TodoContext todoContext, IMapper mapper, IHttpContextAccessor httpContextAccessor)
         {
             _todoContext = todoContext;
             _mapper = mapper;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // 撈資料判斷 參數化查詢邏輯 連線db取得資料
@@ -160,8 +163,14 @@ namespace APIDemo_swagger.Services
         // 有外鍵情況下 同時新增父子資料 連線db新增資料
         public TodoList Postdb(TodoListPostDto value)
         {
+            // 取得使用者資訊(登入狀態)
+            //var Claim = _httpContextAccessor.HttpContext.User.Claims.ToList(); // cookie方式認證 取得登入時宣告的使用者資訊
+            //var employeeid = Claim.Where(a => a.Type == "EmployeeId").First().Value; // employeeid需在claims內宣告為其中一個type才能取
+            var employeeid = _httpContextAccessor.HttpContext.User.FindFirstValue("EmployeeId"); // 另一個取得方式
+            // var email = _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.Email);
+
             // 轉型以給定uploadfiles
-            List<UploadFile> upl = new List<UploadFile>();
+            List <UploadFile> upl = new List<UploadFile>();
 
             foreach (var temp in value.UploadFiles)
             {
@@ -182,8 +191,8 @@ namespace APIDemo_swagger.Services
                 // 系統決定的欄位
                 InsertTime = DateTime.Now,
                 UpdateTime = DateTime.Now,
-                InsertEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"), // 還沒做 先寫死
-                UpdateEmployeeId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                InsertEmployeeId = Guid.Parse(employeeid),
+                UpdateEmployeeId = Guid.Parse(employeeid),
                 UploadFiles = upl // 子資料 (db已做外鍵關聯 Uploadfile內的todoid不用給 會自動吃父資料的)
             };
             _todoContext.TodoLists.Add(insert);

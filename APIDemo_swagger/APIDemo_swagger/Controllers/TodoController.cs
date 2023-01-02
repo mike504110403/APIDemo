@@ -16,6 +16,7 @@ using System;
 using JsonPatchDocument = Microsoft.AspNetCore.JsonPatch.JsonPatchDocument;
 using System.Collections.Generic;
 using APIDemo_swagger.ModelBinder;
+using Microsoft.AspNetCore.Authorization;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -23,6 +24,7 @@ namespace APIDemo_swagger.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    // [Authorize] // 身分驗證
     public class TodoController : ControllerBase
     {
         private readonly TodoContext _todoContext; //   
@@ -40,7 +42,9 @@ namespace APIDemo_swagger.Controllers
 
         //================================================= 取得資料 =================================================================//
 
-        // GET api/<TodoController>  
+        // GET api/<TodoController>
+        // [Authorize] // 身分驗證
+        [Authorize(Roles = "select")]
         [HttpGet]
         public IActionResult Get([FromQuery] TodoSelectParameters value)  // 關鍵字搜尋 傳參數有預設:直接傳預設FromQuery;用類別預設FromBody。因此須特別標示【FromQuery】
         {
@@ -69,6 +73,7 @@ namespace APIDemo_swagger.Controllers
         }
 
         // GET api/<TodoController>/Automapper
+        [Authorize(Roles = "automapper")]
         [HttpGet("Automapper")] 
         public IEnumerable<TodoListSelectDto> GetAutoMapper([FromQuery] TodoSelectParameters value)
         { 
@@ -110,7 +115,8 @@ namespace APIDemo_swagger.Controllers
         public IActionResult Post([FromBody] TodoListPostDto value) // 有設外鍵情況下同時新增父子資料 只有新增父資料情況有異常 -> 待解
         {
             var insert = _todoListService.Postdb(value); // 新增資料
-            return CreatedAtAction(nameof(Get), new { TodoId = insert.TodoId} , insert);
+            // return CreatedAtAction(nameof(Get), new { TodoId = insert.TodoId} , insert);
+            return Ok();
         }
 
         // POST api/<TodoController>/up

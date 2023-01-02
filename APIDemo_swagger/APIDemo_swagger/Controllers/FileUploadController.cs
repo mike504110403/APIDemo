@@ -1,4 +1,5 @@
-﻿using APIDemo_swagger.Models;
+﻿using APIDemo_swagger.Filters;
+using APIDemo_swagger.Models;
 using APIDemo_swagger.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,7 +19,7 @@ namespace APIDemo_swagger.Controllers
             _todoContext = todoContext;
         }
 
-        // Post: api/<FileUploadController>
+        // Post: api/<FileUploadController>        
         [HttpPost]
         public void Post(IFormFile file1) // 上傳單一檔案
         {
@@ -36,6 +37,7 @@ namespace APIDemo_swagger.Controllers
         }
 
         // Post: api/<FileUploadController>
+        [FileLimit(size = 1)]
         [HttpPost("{id}")]
         public void Post(List<IFormFile> files, Guid id) // 上傳複數檔案
         {

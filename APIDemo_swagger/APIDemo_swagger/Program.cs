@@ -1,3 +1,4 @@
+using APIDemo_swagger.Filters;
 using APIDemo_swagger.Interfaces;
 using APIDemo_swagger.Models;
 using APIDemo_swagger.Services;
@@ -75,6 +76,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 builder.Services.AddMvc(options =>
 {
     options.Filters.Add(new AuthorizeFilter());
+    //options.Filters.Add(new TodoAuthorizationFilter()); // 自定義驗證filter
+    options.Filters.Add(typeof(TodoActionFilter));
+    options.Filters.Add(typeof(TodoResultFilter));
 });
 
 

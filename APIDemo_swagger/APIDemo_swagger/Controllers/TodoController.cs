@@ -17,6 +17,8 @@ using JsonPatchDocument = Microsoft.AspNetCore.JsonPatch.JsonPatchDocument;
 using System.Collections.Generic;
 using APIDemo_swagger.ModelBinder;
 using Microsoft.AspNetCore.Authorization;
+using APIDemo_swagger.Filters;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -44,7 +46,8 @@ namespace APIDemo_swagger.Controllers
 
         // GET api/<TodoController>
         // [Authorize] // 身分驗證
-        [Authorize(Roles = "select")]
+        // [Authorize(Roles = "select")]
+        [TodoAuthorizationFilter2(Roles = "aaa")]        
         [HttpGet]
         public IActionResult Get([FromQuery] TodoSelectParameters value)  // 關鍵字搜尋 傳參數有預設:直接傳預設FromQuery;用類別預設FromBody。因此須特別標示【FromQuery】
         {
@@ -73,7 +76,7 @@ namespace APIDemo_swagger.Controllers
         }
 
         // GET api/<TodoController>/Automapper
-        [Authorize(Roles = "automapper")]
+        // [Authorize(Roles = "automapper")]
         [HttpGet("Automapper")] 
         public IEnumerable<TodoListSelectDto> GetAutoMapper([FromQuery] TodoSelectParameters value)
         { 

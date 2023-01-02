@@ -18,7 +18,7 @@ namespace APIDemo_swagger.Controllers
     [AllowAnonymous] // 允許匿名
     public class LoginController : ControllerBase
     {
-        private readonly TodoContext _todoContext;
+        private readonly TodoContext _todoContext; // db注入
         private readonly IConfiguration _configuration; // JWT注入
         public LoginController(TodoContext todoContext, IConfiguration configuration)
         {
@@ -26,7 +26,14 @@ namespace APIDemo_swagger.Controllers
             _configuration = configuration;
         }
 
-        // 登入驗證api cookie
+        // 帳密類別
+        public class LoginPost
+        {
+            public string Password { get; set; }
+            public string Account { get; set; }
+        }
+
+        // 登入驗證 cookie
         [HttpPost]
         public string Login(LoginPost value)
         {
@@ -66,19 +73,15 @@ namespace APIDemo_swagger.Controllers
                 return "Ok";
             }
         }
-        public class LoginPost
-        {
-            public string Password { get; set; }
-            public string Account { get; set; }
-        }
 
+        // 登出 cookie
         [HttpDelete]
         public void Logout()  // 登出狀態驗證
         {
             HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme); 
         }
 
-        // 登入驗證api jwt
+        // 登入驗證 jwt
         [HttpPost("jwtLogin")]
         public string jwtLogin(LoginPost value)
         {
@@ -129,17 +132,18 @@ namespace APIDemo_swagger.Controllers
             }
         }  // 跨伺服器發行比cookie好用 但無法登出
 
+        // 未登入
         [HttpGet("NoLogin")]
         public string noLogout()
         {
             return "未登入";
         }
 
+        // 未授權
         [HttpGet("NoAcess")]
         public string noAcess()
         {
             return "沒有權限";
         }
-
     }
 }
